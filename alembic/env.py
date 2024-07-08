@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from src.core.database.base import Base
+from src.core.database.metadata import mapper_registry
 
 import os
 from pathlib import Path
@@ -24,7 +24,7 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-target_metadata = Base.metadata
+target_metadata = mapper_registry.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

@@ -13,6 +13,9 @@ class URLPathsConfig:
     ME: str = '/me'
     VERIFY_EMAIL: str = '/verify-email/{token}'
     ALL: str = ''
+    MY_STATS: str = '/get-my-statistics'
+    LIKE_USER: str = '/{user_id}/like'
+    DISLIKE_USER: str = '/{user_id}/dislike'
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,9 @@ class URLNamesConfig:
     ME: str = 'get my account'
     VERIFY_EMAIL: str = 'verify email'
     ALL: str = 'get all users'
+    MY_STATS: str = 'get my statistics'
+    LIKE_USER: str = 'like user'
+    DISLIKE_USER: str = 'dislike user'
 
 
 @dataclass(frozen=True)

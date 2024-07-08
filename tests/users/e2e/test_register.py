@@ -4,7 +4,7 @@ from httpx import Response, AsyncClient
 
 from src.users.config import RouterConfig, URLPathsConfig, UserValidationConfig
 from src.users.constants import ErrorDetails
-from src.users.models import UserModel
+from src.users.domain.models import UserModel
 from tests.utils import get_error_message_from_response, generate_random_string
 from tests.config import FakeUserConfig
 
