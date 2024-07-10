@@ -6,7 +6,8 @@ from src.core.exceptions import (
     PreconditionFailedError,
     AlreadyExistsError,
     NotFoundError,
-    ValidationError
+    ValidationError,
+    BadRequestError
 )
 
 
@@ -38,3 +39,14 @@ class UsernameValidationError(ValidationError):
 class PasswordValidationError(ValidationError):
     DETAIL = ErrorDetails.PASSWORD_VALIDATION_ERROR
 
+
+class UserCanNotVoteForHimSelf(BadRequestError):
+    DETAIL = ErrorDetails.USER_CAN_NOT_VOTE_FOR_HIMSELF
+
+
+class UserStatisticsNotFoundError(NotFoundError):
+    DETAIL = ErrorDetails.USER_STATISTICS_NOT_FOUND
+
+
+class UserAlreadyVotedError(BadRequestError):
+    DETAIL = ErrorDetails.USER_ALREADY_VOTED

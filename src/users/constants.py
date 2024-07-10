@@ -17,3 +17,6 @@ class ErrorDetails(BaseErrorDetails):
     USER_ALREADY_EXISTS: str = 'User with provided credentials already exists'
     USER_NOT_FOUND: str = 'User with provided credentials not found'
     USER_ATTRIBUTE_REQUIRED: str = 'user id, email or username is required'
+    USER_CAN_NOT_VOTE_FOR_HIMSELF: str = 'User can not vote for himself'
+    USER_STATISTICS_NOT_FOUND: str = 'User statistics not found'
+    USER_ALREADY_VOTED: str = 'Current user already voted for provided user'

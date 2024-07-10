@@ -1,10 +1,10 @@
 from typing import Optional, List, Sequence
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy import select
+from sqlalchemy import select, update, insert
 
 from src.users.constants import ErrorDetails
-from src.users.exceptions import UserNotFoundError
-from src.users.models import UserModel
+from src.users.exceptions import UserNotFoundError, UserStatisticsNotFoundError
+from src.users.models import UserModel, UserStatisticsModel, UserVoteModel
 from src.core.database.connection import session_factory as default_session_factory
 
 
@@ -19,8 +19,10 @@ class UsersService:
     async def register_user(self, user: UserModel) -> UserModel:
         async with self._session_factory() as session:
             session.add(user)
+            await session.flush()
+            session.add(UserStatisticsModel(user_id=user.id))
             await session.commit()
-            return await self.get_user_by_email(email=user.email)
+            return user
 
     async def check_user_existence(
             self,
@@ -88,3 +90,108 @@ class UsersService:
             users: Sequence[UserModel] = (await session.scalars(select(UserModel))).all()
             assert isinstance(users, list)
             return users
+
+    async def get_user_statistics_by_user_id(self, user_id: int) -> UserStatisticsModel:
+        async with self._session_factory() as session:
+            user_statistics: Optional[UserStatisticsModel] = (
+                await session.scalars(
+                    select(
+                        UserStatisticsModel
+                    ).filter_by(
+                        user_id=user_id
+                    )
+                )
+            ).one_or_none()
+            if not user_statistics:
+                raise UserStatisticsNotFoundError
+
+            return user_statistics
+
+    async def like_user(self, voting_user_id: int, voted_for_user_id: int) -> UserStatisticsModel:
+        async with self._session_factory() as session:
+            user_statistics: Optional[UserStatisticsModel] = (
+                await session.scalars(
+                    select(
+                        UserStatisticsModel
+                    ).filter_by(
+                        user_id=voted_for_user_id
+                    )
+                )
+            ).one_or_none()
+            if not user_statistics:
+                raise UserStatisticsNotFoundError
+
+            await session.execute(
+                update(
+                    UserStatisticsModel
+                ).filter_by(
+                    id=user_statistics.id
+                ).values(
+                    likes=user_statistics.likes + 1
+                )
+            )
+
+            await session.execute(
+                insert(
+                    UserVoteModel
+                ).values(
+                    voting_user_id=voting_user_id,
+                    voted_for_user_id=voted_for_user_id
+                )
+            )
+
+            await session.commit()
+            return user_statistics
+
+    async def dislike_user(self, voting_user_id: int, voted_for_user_id: int) -> UserStatisticsModel:
+        async with self._session_factory() as session:
+            user_statistics: Optional[UserStatisticsModel] = (
+                await session.scalars(
+                    select(
+                        UserStatisticsModel
+                    ).filter_by(
+                        user_id=voted_for_user_id
+                    )
+                )
+            ).one_or_none()
+            if not user_statistics:
+                raise UserStatisticsNotFoundError
+
+            await session.execute(
+                update(
+                    UserStatisticsModel
+                ).filter_by(
+                    id=user_statistics.id
+                ).values(
+                    dislikes=user_statistics.dislikes + 1
+                )
+            )
+
+            await session.execute(
+                insert(
+                    UserVoteModel
+                ).values(
+                    voting_user_id=voting_user_id,
+                    voted_for_user_id=voted_for_user_id
+                )
+            )
+
+            await session.commit()
+            return user_statistics
+
+    async def check_if_user_already_voted(self, voting_user_id: int, voted_for_user_id: int) -> bool:
+        async with self._session_factory() as session:
+            user_vote: Optional[UserVoteModel] = (
+                await session.scalars(
+                    select(
+                        UserVoteModel
+                    ).filter_by(
+                        voted_for_user_id=voted_for_user_id,
+                        voting_user_id=voting_user_id
+                    )
+                )
+            ).one_or_none()
+            if user_vote:
+                return True
+
+        return False

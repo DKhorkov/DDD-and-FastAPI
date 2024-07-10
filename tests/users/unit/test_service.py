@@ -1,22 +1,18 @@
 import pytest
 from typing import Optional, List
-from sqlalchemy import select, CursorResult, Row
+from sqlalchemy import select, insert, CursorResult, Row
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from src.users.constants import ErrorDetails
-from src.users.exceptions import UserNotFoundError
+from src.users.exceptions import UserNotFoundError, UserStatisticsNotFoundError
 from src.users.service import UsersService
-from src.users.models import UserModel
+from src.users.models import UserModel, UserStatisticsModel, UserVoteModel
 from tests.config import FakeUserConfig
 
 
 @pytest.mark.anyio
-async def test_users_service_get_user_by_id_success(
-        create_test_user: None,
-        async_connection: AsyncConnection
-) -> None:
-
+async def test_users_service_get_user_by_id_success(create_test_user: None) -> None:
     user: Optional[UserModel] = await UsersService().get_user_by_id(id=1)
 
     assert user is not None
@@ -26,21 +22,13 @@ async def test_users_service_get_user_by_id_success(
 
 
 @pytest.mark.anyio
-async def test_users_service_get_user_by_id_fail(
-        create_test_db: None,
-        async_connection: AsyncConnection
-) -> None:
-
+async def test_users_service_get_user_by_id_fail(create_test_db: None) -> None:
     with pytest.raises(UserNotFoundError):
         await UsersService().get_user_by_id(id=1)
 
 
 @pytest.mark.anyio
-async def test_users_service_get_user_by_email_success(
-        create_test_user: None,
-        async_connection: AsyncConnection
-) -> None:
-
+async def test_users_service_get_user_by_email_success(create_test_user: None) -> None:
     user: Optional[UserModel] = await UsersService().get_user_by_email(
         email=FakeUserConfig.EMAIL
     )
@@ -52,21 +40,13 @@ async def test_users_service_get_user_by_email_success(
 
 
 @pytest.mark.anyio
-async def test_users_service_get_user_by_email_fail(
-        create_test_db: None,
-        async_connection: AsyncConnection
-) -> None:
-
+async def test_users_service_get_user_by_email_fail(create_test_db: None) -> None:
     with pytest.raises(UserNotFoundError):
         await UsersService().get_user_by_email(email=FakeUserConfig.EMAIL)
 
 
 @pytest.mark.anyio
-async def test_users_service_get_user_by_username_success(
-        create_test_user: None,
-        async_connection: AsyncConnection
-) -> None:
-
+async def test_users_service_get_user_by_username_success(create_test_user: None) -> None:
     user: Optional[UserModel] = await UsersService().get_user_by_username(
         username=FakeUserConfig.USERNAME
     )
@@ -78,21 +58,13 @@ async def test_users_service_get_user_by_username_success(
 
 
 @pytest.mark.anyio
-async def test_users_service_get_user_by_username_fail(
-        create_test_db: None,
-        async_connection: AsyncConnection
-) -> None:
-
+async def test_users_service_get_user_by_username_fail(create_test_db: None) -> None:
     with pytest.raises(UserNotFoundError):
         await UsersService().get_user_by_username(username=FakeUserConfig.USERNAME)
 
 
 @pytest.mark.anyio
-async def test_users_service_get_all_users_with_existing_users(
-        create_test_user: None,
-        async_connection: AsyncConnection
-) -> None:
-
+async def test_users_service_get_all_users_with_existing_users(create_test_user: None) -> None:
     users_list: List[UserModel] = await UsersService().get_all_users()
     assert len(users_list) == 1
 
@@ -103,11 +75,7 @@ async def test_users_service_get_all_users_with_existing_users(
 
 
 @pytest.mark.anyio
-async def test_users_service_get_all_users_without_existing_users(
-        create_test_db: None,
-        async_connection: AsyncConnection
-) -> None:
-
+async def test_users_service_get_all_users_without_existing_users(create_test_db: None) -> None:
     users_list: List[UserModel] = await UsersService().get_all_users()
     assert len(users_list) == 0
 
@@ -123,9 +91,16 @@ async def test_users_service_register_user_success(
     assert not result
 
     user: UserModel = UserModel(**FakeUserConfig().to_dict(to_lower=True))
-    await UsersService().register_user(user=user)
+    user = await UsersService().register_user(user=user)
+    assert user.id == 1
+    assert user.email == FakeUserConfig.EMAIL
+    assert user.username == FakeUserConfig.USERNAME
 
     cursor = await async_connection.execute(select(UserModel).filter_by(email=FakeUserConfig.EMAIL))
+    result = cursor.first()
+    assert result
+
+    cursor = await async_connection.execute(select(UserStatisticsModel).filter_by(user_id=1))
     result = cursor.first()
     assert result
 
@@ -196,3 +171,62 @@ async def test_users_service_check_user_existence_fail_no_attributes_provided(cr
         await UsersService().check_user_existence()
 
     assert str(exc_info.value) == ErrorDetails.USER_ATTRIBUTE_REQUIRED
+
+
+@pytest.mark.anyio
+async def test_get_user_statistics_by_user_id_success(create_test_user: None) -> None:
+    user_statistics: UserStatisticsModel = await UsersService().get_user_statistics_by_user_id(user_id=1)
+    assert user_statistics.likes == 0
+    assert user_statistics.dislikes == 0
+
+
+@pytest.mark.anyio
+async def test_get_user_statistics_by_user_id_fail_user_statistics_not_found(create_test_db: None) -> None:
+    with pytest.raises(UserStatisticsNotFoundError):
+        await UsersService().get_user_statistics_by_user_id(user_id=1)
+
+
+@pytest.mark.anyio
+async def test_like_user_success(create_test_user: None) -> None:
+    user_statistics: UserStatisticsModel = await UsersService().like_user(voting_user_id=1, voted_for_user_id=1)
+    assert user_statistics.likes == 1
+    assert user_statistics.dislikes == 0
+
+
+@pytest.mark.anyio
+async def test_like_user_fail_user_statistics_not_found(create_test_db: None) -> None:
+    with pytest.raises(UserStatisticsNotFoundError):
+        await UsersService().like_user(voting_user_id=1, voted_for_user_id=1)
+
+
+@pytest.mark.anyio
+async def test_dislike_user_success(create_test_user: None) -> None:
+    user_statistics: UserStatisticsModel = await UsersService().dislike_user(voting_user_id=1, voted_for_user_id=1)
+    assert user_statistics.likes == 0
+    assert user_statistics.dislikes == 1
+
+
+@pytest.mark.anyio
+async def test_dislike_user_fail_user_statistics_not_found(create_test_db: None) -> None:
+    with pytest.raises(UserStatisticsNotFoundError):
+        await UsersService().dislike_user(voting_user_id=1, voted_for_user_id=1)
+
+
+@pytest.mark.anyio
+async def test_check_if_user_already_voted_success(create_test_user: None, async_connection: AsyncConnection) -> None:
+    await async_connection.execute(
+        insert(
+            UserVoteModel
+        ).values(
+            voted_for_user_id=1,
+            voting_user_id=1
+        )
+    )
+    await async_connection.commit()
+
+    assert await UsersService().check_if_user_already_voted(voting_user_id=1, voted_for_user_id=1)
+
+
+@pytest.mark.anyio
+async def test_check_if_user_already_voted_fail(create_test_db: None) -> None:
+    assert not await UsersService().check_if_user_already_voted(voting_user_id=1, voted_for_user_id=1)

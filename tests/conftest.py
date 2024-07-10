@@ -1,14 +1,14 @@
 import pytest
 import os
 from httpx import AsyncClient, Cookies, Response
-from sqlalchemy import insert
+from sqlalchemy import insert, CursorResult, RowMapping
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncConnection
 from sqlalchemy.exc import IntegrityError
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from src.app import app
 from src.users.config import RouterConfig, URLPathsConfig, cookies_config
-from src.users.models import UserModel
+from src.users.models import UserModel, UserStatisticsModel
 from src.core.database.connection import DATABASE_URL
 from src.core.database.base import Base
 from src.users.utils import hash_password
@@ -60,7 +60,13 @@ async def create_test_user(create_test_db: None) -> None:
     test_user_config.PASSWORD = await hash_password(test_user_config.PASSWORD)
     async with engine.begin() as conn:
         try:
-            await conn.execute(insert(UserModel).values(**test_user_config.to_dict(to_lower=True)))
+            cursor: CursorResult = await conn.execute(
+                insert(UserModel).values(**test_user_config.to_dict(to_lower=True)).returning(UserModel)
+            )
+            user_data: Optional[RowMapping] = cursor.mappings().fetchone()
+            assert user_data is not None
+            user: UserModel = UserModel(**user_data)
+            await conn.execute(insert(UserStatisticsModel).values(user_id=user.id))
             await conn.commit()
         except IntegrityError:
             await conn.rollback()

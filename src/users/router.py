@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import Response, JSONResponse
 
-from src.users.models import UserModel
+from src.users.models import UserModel, UserStatisticsModel
 from src.users.config import RouterConfig, URLPathsConfig, URLNamesConfig, cookies_config
 from src.security.models import JWTDataModel
 from src.security.utils import create_jwt_token
@@ -12,6 +12,9 @@ from src.users.dependencies import (
     register_user,
     get_my_account as get_my_account_dependency,
     get_all_users as get_all_users_dependency,
+    get_my_statistics as get_my_statistics_dependency,
+    like_user as like_user_dependency,
+    dislike_user as dislike_user_dependency
 )
 
 
@@ -90,3 +93,36 @@ async def get_my_account(user: UserModel = Depends(get_my_account_dependency)):
 )
 async def get_all_users(users: MutableSequence[UserModel] = Depends(get_all_users_dependency)):
     return users
+
+
+@router.get(
+    path=URLPathsConfig.MY_STATS,
+    response_class=JSONResponse,
+    # response_model=UserStatisticsModel,
+    name=URLNamesConfig.MY_STATS,
+    status_code=status.HTTP_200_OK
+)
+async def get_my_statistics(statistics: UserStatisticsModel = Depends(get_my_statistics_dependency)):
+    return statistics
+
+
+@router.patch(
+    path=URLPathsConfig.LIKE_USER,
+    response_class=JSONResponse,
+    # response_model=UserStatisticsModel,
+    name=URLNamesConfig.LIKE_USER,
+    status_code=status.HTTP_200_OK
+)
+async def like_user(statistics: UserStatisticsModel = Depends(like_user_dependency)):
+    return statistics
+
+
+@router.patch(
+    path=URLPathsConfig.DISLIKE_USER,
+    response_class=JSONResponse,
+    # response_model=UserStatisticsModel,
+    name=URLNamesConfig.DISLIKE_USER,
+    status_code=status.HTTP_200_OK
+)
+async def dislike_user(statistics: UserStatisticsModel = Depends(dislike_user_dependency)):
+    return statistics

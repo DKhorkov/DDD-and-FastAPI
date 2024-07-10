@@ -1,8 +1,14 @@
 from fastapi import Depends
 from typing import List
 
-from src.users.exceptions import UserNotFoundError, InvalidPasswordError, UserAlreadyExistsError
-from src.users.models import UserModel
+from src.users.exceptions import (
+    UserNotFoundError,
+    InvalidPasswordError,
+    UserAlreadyExistsError,
+    UserAlreadyVotedError,
+    UserCanNotVoteForHimSelf
+)
+from src.users.models import UserModel, UserStatisticsModel
 from src.security.models import JWTDataModel
 from src.users.schemas import LoginUserScheme, RegisterUserScheme
 from src.users.utils import oauth2_scheme, verify_password, hash_password
@@ -47,11 +53,46 @@ async def authenticate_user(token: str = Depends(oauth2_scheme)) -> UserModel:
     return user
 
 
-async def get_my_account(token: str = Depends(oauth2_scheme)) -> UserModel:
-    jwt_data: JWTDataModel = await parse_jwt_token(token=token)
-    users_service: UsersService = UsersService()
-    user: UserModel = await users_service.get_user_by_id(id=jwt_data.user_id)
+async def get_my_account(user: UserModel = Depends(authenticate_user)) -> UserModel:
     return user
+
+
+async def get_my_statistics(user: UserModel = Depends(authenticate_user)) -> UserStatisticsModel:
+    users_service: UsersService = UsersService()
+    user_statistics: UserStatisticsModel = await users_service.get_user_statistics_by_user_id(user_id=user.id)
+    return user_statistics
+
+
+async def like_user(user_id: int, user: UserModel = Depends(authenticate_user)) -> UserStatisticsModel:
+    if user.id == user_id:
+        raise UserCanNotVoteForHimSelf
+
+    users_service: UsersService = UsersService()
+    if await users_service.check_if_user_already_voted(voting_user_id=user.id, voted_for_user_id=user_id):
+        raise UserAlreadyVotedError
+
+    user_statistics: UserStatisticsModel = await users_service.like_user(
+        voting_user_id=user.id,
+        voted_for_user_id=user_id
+    )
+
+    return user_statistics
+
+
+async def dislike_user(user_id: int, user: UserModel = Depends(authenticate_user)) -> UserStatisticsModel:
+    if user.id == user_id:
+        raise UserCanNotVoteForHimSelf
+
+    users_service: UsersService = UsersService()
+    if await users_service.check_if_user_already_voted(voting_user_id=user.id, voted_for_user_id=user_id):
+        raise UserAlreadyVotedError
+
+    user_statistics: UserStatisticsModel = await users_service.dislike_user(
+        voting_user_id=user.id,
+        voted_for_user_id=user_id
+    )
+
+    return user_statistics
 
 
 async def get_all_users() -> List[UserModel]:
