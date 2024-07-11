@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from sqlalchemy.orm import clear_mappers
 
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
@@ -30,6 +31,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator:
     yield
 
     # Shutdown events:
+    clear_mappers()
 
 
 app = FastAPI(lifespan=lifespan)
