@@ -9,9 +9,6 @@ from src.core.database.connection import session_factory as default_session_fact
 
 
 class UsersService:
-    """
-    Service layer core according to DDD, which using a unit of work, will perform operations on the domain model.
-    """
 
     def __init__(self, session_factory: async_sessionmaker = default_session_factory) -> None:
         self._session_factory: async_sessionmaker = session_factory
