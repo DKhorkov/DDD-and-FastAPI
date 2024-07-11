@@ -27,6 +27,7 @@ async def test_users_service_register_user_success() -> None:
     user: UserModel = UserModel(**FakeUserConfig().to_dict(to_lower=True))
     await users_service.register_user(user=user)
     assert len(await users_repository.list()) == 1
+    assert len(await users_statistics_repository.list()) == 1
 
 
 @pytest.mark.anyio
