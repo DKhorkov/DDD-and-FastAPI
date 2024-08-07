@@ -11,7 +11,7 @@ from starlette import status
 from src.config import cors_config, URLPathsConfig, URLNamesConfig
 from src.core.database.connection import DATABASE_URL
 from src.core.database.metadata import metadata
-from src.users.router import router as users_router
+from src.users.entrypoints.router import router as users_router
 from src.users.adapters.orm import start_mappers as start_users_mappers
 
 

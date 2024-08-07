@@ -7,7 +7,7 @@ from src.users.domain.models import UserModel, UserStatisticsModel
 from src.users.config import RouterConfig, URLPathsConfig, URLNamesConfig, cookies_config
 from src.security.models import JWTDataModel
 from src.security.utils import create_jwt_token
-from src.users.dependencies import (
+from src.users.entrypoints.dependencies import (
     verify_user_credentials,
     register_user,
     get_my_account as get_my_account_dependency,

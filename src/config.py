@@ -6,6 +6,12 @@ from typing import List, Tuple
 
 
 @dataclass(frozen=True)
+class PathsConfig:
+    TEMPLATES: str = 'templates/'
+    STATIC: str = 'static/'
+
+
+@dataclass(frozen=True)
 class URLPathsConfig:
     HOMEPAGE: str = '/'
     STATIC: str = '/static'

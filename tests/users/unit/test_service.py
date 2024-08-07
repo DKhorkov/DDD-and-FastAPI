@@ -6,7 +6,7 @@ from src.users.exceptions import UserNotFoundError, UserStatisticsNotFoundError
 from src.users.interfaces.repositories import UsersRepository, UsersStatisticsRepository
 from src.users.interfaces.units_of_work import UsersUnitOfWork
 from src.users.domain.models import UserModel, UserStatisticsModel, UserVoteModel
-from src.users.service import UsersService
+from src.users.service_layer.service import UsersService
 from tests.users.fake_objects import FakeUsersUnitOfWork, FakeUsersVotesRepository
 from tests.config import FakeUserConfig
 from tests.users.utils import create_fake_users_repository_instance, create_fake_users_statistics_repository_instance

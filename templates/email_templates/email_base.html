@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Meta -->
+    <meta charset="UTF-8">
+    <meta name="authors" content="Khorkov Dmitriy, Fedor Guliaev, Elizaveta Guliaeva" />
+    <meta name="description" content="Benefit Bistro" />
+    <meta name="keywords" content="Benefit Bistro" />
+
+    {% block head %}
+
+    {% endblock %}
+
+    <!--  Other  -->
+    <title> {{ title if title else 'Benefit Bistro' }} </title>
+</head>
+<body>
+    <div id="content">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html>

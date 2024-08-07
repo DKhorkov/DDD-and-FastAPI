@@ -1,0 +1,10 @@
+{% extends "email_base.html" %}
+{% block content %}
+
+Hi, {{ data['voted_for_user_username'] }}!<br>
+
+User {{ data['voting_user_username'] }} ({{ data['voting_user_email'] }}) just {{ data['vote_info'] }} you!<br>
+
+Have a good day!
+
+{% endblock %}
