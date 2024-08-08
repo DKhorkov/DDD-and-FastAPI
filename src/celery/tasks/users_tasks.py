@@ -8,6 +8,7 @@ from src.celery.config import PathsConfig, EmailSubjectsConfig
 @celery.task
 def send_vote_notification_message(
         voted_for_user_email: str,
+        voted_for_user_username: str,
         voting_user_username: str,
         voting_user_email: str,
         liked: bool,
@@ -18,6 +19,7 @@ def send_vote_notification_message(
     text: str = template.render(
         data={
             'voted_for_user_email': voted_for_user_email,
+            'voted_for_user_username': voted_for_user_username,
             'voting_user_username': voting_user_username,
             'voting_user_email': voting_user_email,
             'vote_info': 'liked' if liked else 'disliked'

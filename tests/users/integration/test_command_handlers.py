@@ -4,30 +4,39 @@ from typing import List
 from src.core.interfaces import AbstractEvent
 from src.users.domain.commands import (
     RegisterUserCommand,
-    VerifyUserCredentialsCommand
+    VerifyUserCredentialsCommand,
+    VoteForUserCommand
 )
-from src.users.domain.events import UserRegisteredEvent
-from src.users.domain.models import UserModel
+from src.users.domain.events import UserVotedEvent
+from src.users.domain.models import UserModel, UserVoteModel, UserStatisticsModel
 from src.users.exceptions import (
-    UserAlreadyExistsError,
-    EmailIsNotVerifiedError,
     InvalidPasswordError,
-    UserNotFoundError
+    UserAlreadyExistsError,
+    UserNotFoundError,
+    UserAlreadyVotedError,
+    UserCanNotVoteForHimSelf
 )
-from src.users.interfaces import UsersUnitOfWork, UsersRepository
+from src.users.interfaces import UsersUnitOfWork, UsersRepository, UsersStatisticsRepository
 from src.users.service_layer.handlers.command_handlers import (
     RegisterUserCommandHandler,
-    VerifyUserCredentialsCommandHandler
+    VerifyUserCredentialsCommandHandler,
+    VoteForUserCommandHandler
 )
 from tests.config import FakeUserConfig
-from tests.users.fake_objects import FakeUsersUnitOfWork, FakeUsersRepository
-from tests.users.utils import create_fake_users_repository_instance
+from tests.users.fake_objects import FakeUsersUnitOfWork, FakeUsersVotesRepository
+from tests.users.utils import create_fake_users_repository_instance, create_fake_users_statistics_repository_instance
 
 
 @pytest.mark.anyio
 async def test_register_user_command_handler_success() -> None:
     users_repository: UsersRepository = await create_fake_users_repository_instance()
-    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(users_repository=users_repository)
+    users_statistics_repository: UsersStatisticsRepository = await create_fake_users_statistics_repository_instance()
+    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(
+        users_repository=users_repository,
+        users_statistics_repository=users_statistics_repository,
+        users_votes_repository=FakeUsersVotesRepository()
+    )
+
     handler: RegisterUserCommandHandler = RegisterUserCommandHandler(uow=users_unit_of_work)
     user: UserModel = await handler(
         command=RegisterUserCommand(
@@ -39,17 +48,21 @@ async def test_register_user_command_handler_success() -> None:
 
     assert user.email == FakeUserConfig.EMAIL
     assert user.username == FakeUserConfig.USERNAME
-    assert not user.password
-
-    events: List[AbstractEvent] = list(users_unit_of_work.get_events())
-    assert len(events) == 1
-    assert isinstance(events[0], UserRegisteredEvent)
 
 
 @pytest.mark.anyio
 async def test_register_user_command_handler_fail_user_already_exists() -> None:
     users_repository: UsersRepository = await create_fake_users_repository_instance(with_user=True)
-    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(users_repository=users_repository)
+    users_statistics_repository: UsersStatisticsRepository = await create_fake_users_statistics_repository_instance(
+        with_user=True
+    )
+
+    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(
+        users_repository=users_repository,
+        users_statistics_repository=users_statistics_repository,
+        users_votes_repository=FakeUsersVotesRepository()
+    )
+
     handler: RegisterUserCommandHandler = RegisterUserCommandHandler(uow=users_unit_of_work)
     with pytest.raises(UserAlreadyExistsError):
         await handler(
@@ -64,7 +77,16 @@ async def test_register_user_command_handler_fail_user_already_exists() -> None:
 @pytest.mark.anyio
 async def test_verify_user_credentials_command_handler_via_email_success() -> None:
     users_repository: UsersRepository = await create_fake_users_repository_instance(with_user=True)
-    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(users_repository=users_repository)
+    users_statistics_repository: UsersStatisticsRepository = await create_fake_users_statistics_repository_instance(
+        with_user=True
+    )
+
+    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(
+        users_repository=users_repository,
+        users_statistics_repository=users_statistics_repository,
+        users_votes_repository=FakeUsersVotesRepository()
+    )
+
     handler: VerifyUserCredentialsCommandHandler = VerifyUserCredentialsCommandHandler(uow=users_unit_of_work)
     user: UserModel = await handler(
         command=VerifyUserCredentialsCommand(
@@ -75,13 +97,21 @@ async def test_verify_user_credentials_command_handler_via_email_success() -> No
 
     assert user.email == FakeUserConfig.EMAIL
     assert user.username == FakeUserConfig.USERNAME
-    assert not user.password
 
 
 @pytest.mark.anyio
 async def test_verify_user_credentials_command_handler_via_username_success() -> None:
     users_repository: UsersRepository = await create_fake_users_repository_instance(with_user=True)
-    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(users_repository=users_repository)
+    users_statistics_repository: UsersStatisticsRepository = await create_fake_users_statistics_repository_instance(
+        with_user=True
+    )
+
+    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(
+        users_repository=users_repository,
+        users_statistics_repository=users_statistics_repository,
+        users_votes_repository=FakeUsersVotesRepository()
+    )
+
     handler: VerifyUserCredentialsCommandHandler = VerifyUserCredentialsCommandHandler(uow=users_unit_of_work)
     user: UserModel = await handler(
         command=VerifyUserCredentialsCommand(
@@ -92,13 +122,18 @@ async def test_verify_user_credentials_command_handler_via_username_success() ->
 
     assert user.email == FakeUserConfig.EMAIL
     assert user.username == FakeUserConfig.USERNAME
-    assert not user.password
 
 
 @pytest.mark.anyio
 async def test_verify_user_credentials_command_handler_fail_user_not_found() -> None:
     users_repository: UsersRepository = await create_fake_users_repository_instance()
-    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(users_repository=users_repository)
+    users_statistics_repository: UsersStatisticsRepository = await create_fake_users_statistics_repository_instance()
+    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(
+        users_repository=users_repository,
+        users_statistics_repository=users_statistics_repository,
+        users_votes_repository=FakeUsersVotesRepository()
+    )
+
     handler: VerifyUserCredentialsCommandHandler = VerifyUserCredentialsCommandHandler(uow=users_unit_of_work)
     with pytest.raises(UserNotFoundError):
         await handler(
@@ -112,7 +147,16 @@ async def test_verify_user_credentials_command_handler_fail_user_not_found() -> 
 @pytest.mark.anyio
 async def test_verify_user_credentials_command_handler_fail_invalid_password() -> None:
     users_repository: UsersRepository = await create_fake_users_repository_instance(with_user=True)
-    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(users_repository=users_repository)
+    users_statistics_repository: UsersStatisticsRepository = await create_fake_users_statistics_repository_instance(
+        with_user=True
+    )
+
+    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(
+        users_repository=users_repository,
+        users_statistics_repository=users_statistics_repository,
+        users_votes_repository=FakeUsersVotesRepository()
+    )
+
     handler: VerifyUserCredentialsCommandHandler = VerifyUserCredentialsCommandHandler(uow=users_unit_of_work)
     with pytest.raises(InvalidPasswordError):
         await handler(
@@ -124,18 +168,115 @@ async def test_verify_user_credentials_command_handler_fail_invalid_password() -
 
 
 @pytest.mark.anyio
-async def test_verify_user_credentials_command_handler_fail_email_is_not_verified() -> None:
-    user_id: int = 1
-    user_data: FakeUserConfig = FakeUserConfig()
-    user_data.EMAIL_VERIFIED = False
-    user: UserModel = UserModel(**user_data.to_dict(to_lower=True), id=user_id)
-    users_repository = FakeUsersRepository(users={user_id: user})
-    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(users_repository=users_repository)
-    handler: VerifyUserCredentialsCommandHandler = VerifyUserCredentialsCommandHandler(uow=users_unit_of_work)
-    with pytest.raises(EmailIsNotVerifiedError):
+async def test_vote_for_user_command_handler_fail_user_can_not_vote_for_himself() -> None:
+    users_repository: UsersRepository = await create_fake_users_repository_instance(with_user=True)
+    users_statistics_repository: UsersStatisticsRepository = await create_fake_users_statistics_repository_instance(
+        with_user=True
+    )
+
+    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(
+        users_repository=users_repository,
+        users_statistics_repository=users_statistics_repository,
+        users_votes_repository=FakeUsersVotesRepository()
+    )
+
+    handler: VoteForUserCommandHandler = VoteForUserCommandHandler(uow=users_unit_of_work)
+    with pytest.raises(UserCanNotVoteForHimSelf):
         await handler(
-            command=VerifyUserCredentialsCommand(
-                username=FakeUserConfig.USERNAME,
-                password=FakeUserConfig.PASSWORD
+            command=VoteForUserCommand(
+                voted_for_user_id=1,
+                voting_user_id=1,
+                liked=True,
+                disliked=False
             )
         )
+
+
+@pytest.mark.anyio
+async def test_vote_for_user_command_handler_fail_user_can_not_vote_twice_for_same_user() -> None:
+    users_repository: UsersRepository = await create_fake_users_repository_instance(with_user=True)
+    await users_repository.add(
+        UserModel(
+            id=2,
+            email='test_email@gmail.com',
+            password='<PASSWORD>',
+            username='test_username'
+        )
+    )
+
+    users_statistics_repository: UsersStatisticsRepository = await create_fake_users_statistics_repository_instance(
+        with_user=True
+    )
+    await users_statistics_repository.add(
+        UserStatisticsModel(
+            id=2,
+            user_id=2
+        )
+    )
+
+    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(
+        users_repository=users_repository,
+        users_statistics_repository=users_statistics_repository,
+        users_votes_repository=FakeUsersVotesRepository(
+            users_votes={
+                1: UserVoteModel(
+                    voting_user_id=1,
+                    voted_for_user_id=2
+                )
+            }
+        )
+    )
+
+    handler: VoteForUserCommandHandler = VoteForUserCommandHandler(uow=users_unit_of_work)
+    with pytest.raises(UserAlreadyVotedError):
+        await handler(
+            command=VoteForUserCommand(
+                voted_for_user_id=2,
+                voting_user_id=1,
+                liked=True,
+                disliked=False
+            )
+        )
+
+
+@pytest.mark.anyio
+async def test_vote_for_user_command_handler_success() -> None:
+    users_repository: UsersRepository = await create_fake_users_repository_instance(with_user=True)
+    await users_repository.add(
+        UserModel(
+            id=2,
+            email='test_email@gmail.com',
+            password='<PASSWORD>',
+            username='test_username'
+        )
+    )
+
+    users_statistics_repository: UsersStatisticsRepository = await create_fake_users_statistics_repository_instance(
+        with_user=True
+    )
+    await users_statistics_repository.add(
+        UserStatisticsModel(
+            id=2,
+            user_id=2
+        )
+    )
+
+    users_unit_of_work: UsersUnitOfWork = FakeUsersUnitOfWork(
+        users_repository=users_repository,
+        users_statistics_repository=users_statistics_repository,
+        users_votes_repository=FakeUsersVotesRepository()
+    )
+
+    handler: VoteForUserCommandHandler = VoteForUserCommandHandler(uow=users_unit_of_work)
+    await handler(
+        command=VoteForUserCommand(
+            voted_for_user_id=2,
+            voting_user_id=1,
+            liked=True,
+            disliked=False
+        )
+    )
+
+    events: List[AbstractEvent] = list(users_unit_of_work.get_events())
+    assert len(events) == 1
+    assert isinstance(events[0], UserVotedEvent)

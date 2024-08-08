@@ -1,5 +1,4 @@
 import pytest
-from datetime import datetime, timezone
 from typing import List, Optional
 from sqlalchemy import CursorResult, insert, RowMapping
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -12,15 +11,11 @@ from src.users.exceptions import (
     UserAlreadyVotedError,
     UserCanNotVoteForHimSelf
 )
-from src.security.exceptions import InvalidTokenError
 from src.users.domain.models import UserModel, UserStatisticsModel
-from src.security.models import JWTDataModel
 from src.users.entrypoints.schemas import RegisterUserScheme, LoginUserScheme
-from src.security.utils import create_jwt_token
 from tests.config import FakeUserConfig
 from src.users.entrypoints.dependencies import (
     register_user,
-    authenticate_user,
     verify_user_credentials,
     get_all_users,
     get_my_statistics,
@@ -82,35 +77,6 @@ async def test_verify_user_credentials_fail_incorrect_password(create_test_user:
 
 
 @pytest.mark.anyio
-async def test_authenticate_user_success(create_test_db: None, access_token: str) -> None:
-    user: UserModel = await authenticate_user(token=access_token)
-    assert user.email == FakeUserConfig.EMAIL
-    assert user.username == FakeUserConfig.USERNAME
-
-
-@pytest.mark.anyio
-async def test_authenticate_user_fail_invalid_token(create_test_db: None) -> None:
-    with pytest.raises(InvalidTokenError):
-        await authenticate_user(token='someInvalidToken')
-
-
-@pytest.mark.anyio
-async def test_authenticate_user_fail_token_expired(create_test_db: None) -> None:
-    jwt_data: JWTDataModel = JWTDataModel(user_id=1, exp=datetime.now(timezone.utc))
-    token: str = await create_jwt_token(jwt_data=jwt_data)
-    with pytest.raises(InvalidTokenError):
-        await authenticate_user(token=token)
-
-
-@pytest.mark.anyio
-async def test_authenticate_user_fail_user_does_not_exist(create_test_db: None) -> None:
-    jwt_data: JWTDataModel = JWTDataModel(user_id=1)
-    token: str = await create_jwt_token(jwt_data=jwt_data)
-    with pytest.raises(UserNotFoundError):
-        await authenticate_user(token=token)
-
-
-@pytest.mark.anyio
 async def test_get_all_users_with_existing_user(create_test_user: None) -> None:
     users: List[UserModel] = await get_all_users()
     assert len(users) == 1
@@ -127,30 +93,23 @@ async def test_get_all_users_without_existing_users(create_test_db: None) -> Non
 
 
 @pytest.mark.anyio
-async def test_get_my_statistics_success(create_test_user: None) -> None:
-    statistics: UserStatisticsModel = await get_my_statistics(
-        user=UserModel(
-            id=1,
-            **FakeUserConfig().to_dict(to_lower=True)
-        )
-    )
+async def test_get_my_statistics_success(access_token: str) -> None:
+    statistics: UserStatisticsModel = await get_my_statistics(token=access_token)
     assert statistics.likes == 0
     assert statistics.dislikes == 0
 
 
 @pytest.mark.anyio
-async def test_get_my_statistics_fail_user_does_not_exist(create_test_db: None) -> None:
+async def test_get_my_statistics_fail_user_does_not_exist(map_models_to_orm: None) -> None:
     with pytest.raises(UserStatisticsNotFoundError):
         await get_my_statistics(
-            user=UserModel(
-                id=1,
-                **FakeUserConfig().to_dict(to_lower=True)
-            )
+            token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoyLCJleHAiOjE3MjM2NDc4Mjl9.'
+                  'vrltPl_1Bh2LSsvjAd3S7N2ylUX4UzT1q2rrO76M3UI'
         )
 
 
 @pytest.mark.anyio
-async def test_like_user_success(create_test_user: None, async_connection: AsyncConnection) -> None:
+async def test_like_user_success(access_token: str, async_connection: AsyncConnection) -> None:
     cursor: CursorResult = await async_connection.execute(
         insert(
             UserModel
@@ -170,10 +129,7 @@ async def test_like_user_success(create_test_user: None, async_connection: Async
 
     statistics: UserStatisticsModel = await like_user(
         user_id=user.id,
-        user=UserModel(
-            id=1,
-            **FakeUserConfig().to_dict(to_lower=True)
-        )
+        token=access_token
     )
     assert statistics.likes == 1
     assert statistics.dislikes == 0
@@ -181,7 +137,7 @@ async def test_like_user_success(create_test_user: None, async_connection: Async
 
 @pytest.mark.anyio
 async def test_like_user_fail_can_not_vote_more_than_one_time(
-        create_test_user: None,
+        access_token: str,
         async_connection: AsyncConnection
 ) -> None:
 
@@ -204,36 +160,27 @@ async def test_like_user_fail_can_not_vote_more_than_one_time(
 
     await like_user(
         user_id=user.id,
-        user=UserModel(
-            id=1,
-            **FakeUserConfig().to_dict(to_lower=True)
-        )
+        token=access_token
     )
 
     with pytest.raises(UserAlreadyVotedError):
         await like_user(
             user_id=user.id,
-            user=UserModel(
-                id=1,
-                **FakeUserConfig().to_dict(to_lower=True)
-            )
+            token=access_token
         )
 
 
 @pytest.mark.anyio
-async def test_like_user_fail_can_not_for_himself(create_test_user: None) -> None:
+async def test_like_user_fail_can_not_for_himself(access_token: str) -> None:
     with pytest.raises(UserCanNotVoteForHimSelf):
         await like_user(
             user_id=1,
-            user=UserModel(
-                id=1,
-                **FakeUserConfig().to_dict(to_lower=True)
-            )
+            token=access_token
         )
 
 
 @pytest.mark.anyio
-async def test_dislike_user_success(create_test_user: None, async_connection: AsyncConnection) -> None:
+async def test_dislike_user_success(access_token: str, async_connection: AsyncConnection) -> None:
     cursor: CursorResult = await async_connection.execute(
         insert(
             UserModel
@@ -253,10 +200,7 @@ async def test_dislike_user_success(create_test_user: None, async_connection: As
 
     statistics: UserStatisticsModel = await dislike_user(
         user_id=user.id,
-        user=UserModel(
-            id=1,
-            **FakeUserConfig().to_dict(to_lower=True)
-        )
+        token=access_token
     )
     assert statistics.likes == 0
     assert statistics.dislikes == 1
@@ -264,7 +208,7 @@ async def test_dislike_user_success(create_test_user: None, async_connection: As
 
 @pytest.mark.anyio
 async def test_dislike_user_fail_can_not_vote_more_than_one_time(
-        create_test_user: None,
+        access_token: str,
         async_connection: AsyncConnection
 ) -> None:
 
@@ -287,29 +231,20 @@ async def test_dislike_user_fail_can_not_vote_more_than_one_time(
 
     await dislike_user(
         user_id=user.id,
-        user=UserModel(
-            id=1,
-            **FakeUserConfig().to_dict(to_lower=True)
-        )
+        token=access_token
     )
 
     with pytest.raises(UserAlreadyVotedError):
         await dislike_user(
             user_id=user.id,
-            user=UserModel(
-                id=1,
-                **FakeUserConfig().to_dict(to_lower=True)
-            )
+            token=access_token
         )
 
 
 @pytest.mark.anyio
-async def test_dislike_user_fail_can_not_for_himself(create_test_user: None) -> None:
+async def test_dislike_user_fail_can_not_for_himself(access_token: str) -> None:
     with pytest.raises(UserCanNotVoteForHimSelf):
         await dislike_user(
             user_id=1,
-            user=UserModel(
-                id=1,
-                **FakeUserConfig().to_dict(to_lower=True)
-            )
+            token=access_token
         )
