@@ -3,6 +3,8 @@ from typing import List, Optional
 from sqlalchemy import CursorResult, insert, RowMapping
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from src.security.models import JWTDataModel
+from src.security.utils import create_jwt_token
 from src.users.exceptions import (
     UserAlreadyExistsError,
     InvalidPasswordError,
@@ -103,8 +105,7 @@ async def test_get_my_statistics_success(access_token: str) -> None:
 async def test_get_my_statistics_fail_user_does_not_exist(map_models_to_orm: None) -> None:
     with pytest.raises(UserStatisticsNotFoundError):
         await get_my_statistics(
-            token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoyLCJleHAiOjE3MjM2NDc4Mjl9.'
-                  'vrltPl_1Bh2LSsvjAd3S7N2ylUX4UzT1q2rrO76M3UI'
+            token=await create_jwt_token(jwt_data=JWTDataModel(user_id=1))
         )
 
 
