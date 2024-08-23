@@ -18,9 +18,9 @@ class MessageBus:
         command_handlers: Dict[Type[AbstractCommand], AbstractCommandHandler],
     ) -> None:
 
-        self._uow = uow
-        self._event_handlers = event_handlers
-        self._command_handlers = command_handlers
+        self._uow: AbstractUnitOfWork = uow
+        self._event_handlers: Dict[Type[AbstractEvent], List[AbstractEventHandler]] = event_handlers
+        self._command_handlers: Dict[Type[AbstractCommand], AbstractCommandHandler] = command_handlers
         self._queue: Queue = Queue()
         self._command_result: Any = None
 
